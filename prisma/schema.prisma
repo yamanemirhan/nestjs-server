@@ -1,0 +1,146 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://prisly.cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_DIRECT_URL")
+}
+
+model User {
+  userId       String        @id @default(uuid()) @db.Uuid @map("userId")
+  username     String        @unique
+  password     String
+  email        String        @unique
+  role         Role          @default(USER)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  refreshToken String?
+  
+  reviews      Review[]
+  comments     Comment[]
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+
+model Category {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  
+  formFields  Json     @map("form_fields")
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assets      Asset[]
+}
+
+model Asset {
+  id                String    @id @default(uuid()) @db.Uuid
+  title             String
+  brand             String?
+  model             String?
+  description       String?
+  locationLatitude  Float?    @map("location_latitude")
+  locationLongitude Float?    @map("location_longitude")
+  
+  generalAverage    Float     @default(0) @map("general_average")
+  reviewCount       Int       @default(0) @map("review_count")
+
+  categoryId        String    @db.Uuid
+  category          Category  @relation(fields: [categoryId], references: [id])
+  reviews           Review[]
+
+  media             AssetMedia[]
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([categoryId])
+}
+
+model AssetMedia {
+  id        String   @id @default(uuid()) @db.Uuid
+  assetId   String   @db.Uuid
+  asset     Asset    @relation(fields: [assetId], references: [id])
+
+  url       String
+  mediaType String   @map("media_type")
+
+  createdAt DateTime @default(now())
+
+  @@index([assetId])
+}
+
+model Review {
+  id              String         @id @default(uuid()) @db.Uuid
+  
+  overallRating   Int            @map("overall_rating")
+  
+  comment         String?        @db.Text
+
+  dynamicData     Json           @map("dynamic_data")
+  
+  locationLatitude  Float?    @map("location_latitude")
+  locationLongitude Float?    @map("location_longitude")
+
+  helpfulCount    Int            @default(0) @map("helpful_count")
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  userId          String         @db.Uuid
+  user            User           @relation(fields: [userId], references: [userId])
+  
+  assetId         String         @db.Uuid
+  asset           Asset          @relation(fields: [assetId], references: [id])
+  
+  media           ReviewMedia[]
+  comments        Comment[]
+
+  @@unique([userId, assetId])
+  @@index([assetId, userId])
+}
+
+model ReviewMedia {
+  id        String    @id @default(uuid()) @db.Uuid
+  reviewId  String    @db.Uuid
+  review    Review    @relation(fields: [reviewId], references: [id])
+  
+  url       String
+  mediaType String    @map("media_type")
+  
+  createdAt DateTime  @default(now())
+
+  @@index([reviewId])
+}
+
+model Comment {
+  id        String    @id @default(uuid()) @db.Uuid
+  reviewId  String    @db.Uuid
+  review    Review    @relation(fields: [reviewId], references: [id])
+  
+  userId    String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [userId])
+  
+  content   String    @db.Text
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([reviewId])
+}
