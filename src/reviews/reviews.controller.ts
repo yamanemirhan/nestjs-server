@@ -8,8 +8,6 @@ import {
   Request,
   Get,
   Param,
-  UsePipes,
-  ValidationPipe,
 } from '@nestjs/common';
 import { ReviewsService } from './reviews.service';
 import { CreateReviewDto } from './dto/create-review.dto';
@@ -32,5 +30,17 @@ export class ReviewsController {
   @HttpCode(HttpStatus.OK)
   async findOne(@Param() params: ReviewIdParamDto) {
     return this.reviewsService.findOne(params.reviewId);
+  }
+
+  @Get('asset/:assetId')
+  @HttpCode(HttpStatus.OK)
+  async findByAsset(@Param('assetId') assetId: string) {
+    return this.reviewsService.findByAssetId(assetId);
+  }
+
+  @Get('get/latest')
+  @HttpCode(HttpStatus.OK)
+  async findLatest() {
+    return this.reviewsService.findLatest();
   }
 }

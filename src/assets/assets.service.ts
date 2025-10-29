@@ -7,6 +7,7 @@ import { CreateAssetDto } from './dto/create-asset.dto';
 import { Result } from 'src/common/base-response.dto';
 import { DatabaseService } from 'src/database/database.service';
 import { AssetResponseDto } from './dto/asset-response.dto';
+import { CategoryResponseDto } from 'src/categories/dto/category-response.dto';
 
 @Injectable()
 export class AssetsService {
@@ -74,6 +75,10 @@ export class AssetsService {
           categoryId: asset.categoryId ?? undefined,
           generalAverage: asset.generalAverage ?? undefined,
           reviewCount: asset.reviewCount ?? undefined,
+          categoryAverages:
+            typeof asset.categoryAverages === 'string'
+              ? JSON.parse(asset.categoryAverages)
+              : (asset.categoryAverages as Record<string, number> | undefined),
         }),
     );
 
@@ -120,6 +125,12 @@ export class AssetsService {
   ): Promise<Result<AssetResponseDto[]>> {
     const assets = await this.databaseService.asset.findMany({
       where: { categoryId },
+      include: {
+        category: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
     });
 
     if (!assets || assets.length === 0) {
@@ -138,9 +149,21 @@ export class AssetsService {
           model: asset.model ?? undefined,
           locationLatitude: asset.locationLatitude ?? undefined,
           locationLongitude: asset.locationLongitude ?? undefined,
-          categoryId: asset.categoryId ?? undefined,
-          generalAverage: asset.generalAverage ?? undefined,
-          reviewCount: asset.reviewCount ?? undefined,
+          categoryId: asset.categoryId,
+          category: new CategoryResponseDto({
+            id: asset.category.id,
+            name: asset.category.name,
+            slug: asset.category.slug,
+            description: asset.category.description ?? undefined,
+            formFields: asset.category.formFields as any,
+            createdAt: asset.category.createdAt,
+            updatedAt: asset.category.updatedAt,
+          }),
+          generalAverage: asset.generalAverage,
+          reviewCount: asset.reviewCount,
+          categoryAverages: asset.categoryAverages
+            ? (asset.categoryAverages as Record<string, number>)
+            : undefined,
         }),
     );
 

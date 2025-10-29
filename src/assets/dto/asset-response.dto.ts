@@ -74,6 +74,19 @@ export class AssetResponseDto {
 
   @Expose()
   @ApiProperty({
+    description: 'Kategoriye özel ortalama puanlar (dinamik alanlar)',
+    example: {
+      roomCleanliness: 4.5,
+      locationAccess: 4.2,
+      staffService: 4.8,
+      breakfastQuality: 4.3,
+    },
+    required: false,
+  })
+  categoryAverages?: Record<string, number>;
+
+  @Expose()
+  @ApiProperty({
     description: 'Kategori bilgisi',
     type: () => CategoryResponseDto,
   })

@@ -61,6 +61,8 @@ model Asset {
   generalAverage    Float     @default(0) @map("general_average")
   reviewCount       Int       @default(0) @map("review_count")
 
+  categoryAverages  Json?     @map("category_averages")
+
   categoryId        String    @db.Uuid
   category          Category  @relation(fields: [categoryId], references: [id])
   reviews           Review[]

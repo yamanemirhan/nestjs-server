@@ -35,7 +35,7 @@ export class ReviewsService {
 
     if (existingReview) {
       throw new BadRequestException(
-        'Bu asset için zaten bir inceleme yaptınız.',
+        'Bu varlık için zaten bir inceleme yaptınız.',
       );
     }
 
@@ -147,7 +147,7 @@ export class ReviewsService {
     };
   }
 
-  async findByAsset(assetId: string): Promise<Result<ReviewResponseDto[]>> {
+  async findByAssetId(assetId: string): Promise<Result<ReviewResponseDto[]>> {
     const reviews = await this.databaseService.review.findMany({
       where: { assetId },
       include: {
@@ -175,7 +175,14 @@ export class ReviewsService {
           createdAt: review.createdAt,
           updatedAt: review.updatedAt,
           user: review.user,
+          locationLatitude: review.locationLatitude ?? undefined,
+          locationLongitude: review.locationLongitude ?? undefined,
           media: review.media,
+          comment: review.comment ?? undefined,
+          dynamicData:
+            review.dynamicData === null
+              ? undefined
+              : (review.dynamicData as Record<string, any>),
         }),
     );
 
@@ -258,20 +265,54 @@ export class ReviewsService {
   private async updateAssetAverageRating(assetId: string): Promise<void> {
     const reviews = await this.databaseService.review.findMany({
       where: { assetId },
-      select: { overallRating: true },
+      select: {
+        overallRating: true,
+        dynamicData: true,
+      },
     });
 
     const reviewCount = reviews.length;
+
     const generalAverage =
       reviewCount > 0
         ? reviews.reduce((sum, r) => sum + r.overallRating, 0) / reviewCount
         : 0;
 
+    let categoryAverages: Record<string, number> | undefined = undefined;
+
+    if (reviewCount > 0) {
+      const fieldTotals: Record<string, { sum: number; count: number }> = {};
+
+      reviews.forEach((review) => {
+        if (review.dynamicData && typeof review.dynamicData === 'object') {
+          Object.entries(review.dynamicData).forEach(([key, value]) => {
+            if (typeof value === 'number' && value > 0) {
+              if (!fieldTotals[key]) {
+                fieldTotals[key] = { sum: 0, count: 0 };
+              }
+              fieldTotals[key].sum += value;
+              fieldTotals[key].count += 1;
+            }
+          });
+        }
+      });
+
+      categoryAverages = {};
+      Object.entries(fieldTotals).forEach(([key, data]) => {
+        if (data.count > 0) {
+          categoryAverages![key] = parseFloat(
+            (data.sum / data.count).toFixed(2),
+          );
+        }
+      });
+    }
+
     await this.databaseService.asset.update({
       where: { id: assetId },
       data: {
-        generalAverage,
+        generalAverage: parseFloat(generalAverage.toFixed(2)),
         reviewCount,
+        categoryAverages,
       },
     });
   }
@@ -298,6 +339,78 @@ export class ReviewsService {
       success: true,
       statusCode: 200,
       message: 'İnceleme faydalı olarak işaretlendi.',
+    };
+  }
+
+  async findLatest(): Promise<Result<ReviewResponseDto[]>> {
+    const reviews = await this.databaseService.review.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      include: {
+        user: {
+          select: {
+            userId: true,
+            username: true,
+            email: true,
+          },
+        },
+        asset: {
+          select: {
+            id: true,
+            title: true,
+            brand: true,
+            model: true,
+            description: true,
+            createdAt: true,
+            updatedAt: true,
+            locationLatitude: true,
+            locationLongitude: true,
+            generalAverage: true,
+            reviewCount: true,
+            categoryAverages: true,
+            media: true,
+            categoryId: true,
+            category: true,
+          },
+        },
+        media: true,
+      },
+    });
+
+    const reviewsResponse = reviews.map(
+      (review) =>
+        new ReviewResponseDto({
+          id: review.id,
+          assetId: review.assetId,
+          userId: review.userId,
+          overallRating: review.overallRating,
+          helpfulCount: review.helpfulCount,
+          createdAt: review.createdAt,
+          updatedAt: review.updatedAt,
+          user: review.user,
+          media: review.media,
+          asset: {
+            ...review.asset,
+            brand: review.asset.brand ?? undefined,
+            model: review.asset.model ?? undefined,
+            id: review.asset.id,
+            title: review.asset.title,
+          },
+          comment: review.comment ?? undefined,
+          locationLatitude: review.locationLatitude ?? undefined,
+          locationLongitude: review.locationLongitude ?? undefined,
+          dynamicData:
+            review.dynamicData === null
+              ? undefined
+              : (review.dynamicData as Record<string, any>),
+        }),
+    );
+
+    return {
+      success: true,
+      statusCode: 200,
+      data: reviewsResponse,
+      message: 'En son incelemeler başarıyla getirildi.',
     };
   }
 }

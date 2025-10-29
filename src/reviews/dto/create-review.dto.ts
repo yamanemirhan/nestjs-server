@@ -49,7 +49,7 @@ export class CreateReviewDto {
     example: { temizlik: 5, konum: 4, fiyat: 3 },
   })
   @IsObject()
-  @IsNotEmpty()
+  @IsOptional()
   dynamicData: Record<string, any>;
 
   @ApiProperty({
